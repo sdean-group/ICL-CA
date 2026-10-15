@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ca-transformer"
+version = "0.1.0"
+description = "Pretrained transformers that learn cellular-automaton rules in context"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+dependencies = [
+    "torch>=2.0",
+    "numpy",
+    "matplotlib",
+    "huggingface_hub>=0.20",
+    "pyyaml",
+]
+
+# The package is `src` itself (`from src import load_pretrained`); it reads
+# configs/pretrained_models.yaml from the repo root, so install it editable
+# (`pip install -e .`) from a clone.
+[tool.setuptools]
+packages = ["src", "src.data", "src.datagen"]
+
+[tool.setuptools.package-data]
+src = ["assets/*.npz"]
+

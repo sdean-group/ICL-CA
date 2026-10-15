@@ -1,0 +1,89 @@
+{
+  "_note": "Paper-reported test metrics of the released checkpoints, keyed by registry key (configs/pretrained_models.yaml). Metric names are those written by `python -m src.evaluate --out`, so results can be compared key by key. Values are rounded to 4 decimals as in the paper tables.",
+  "results": {
+    "1d-det-v2k3-shared": {
+      "tf/seq_acc": 0.999,
+      "tf/cell_acc": 1.0,
+      "ar/overall/cell_acc": 0.9999
+    },
+    "1d-det-v2k3-dedicated": {
+      "tf/seq_acc": 0.9994,
+      "tf/cell_acc": 1.0,
+      "ar/overall/cell_acc": 1.0
+    },
+    "1d-det-v3k3-shared": {
+      "tf/seq_acc": 0.9994,
+      "tf/cell_acc": 1.0,
+      "ar/overall/cell_acc": 1.0
+    },
+    "1d-det-v3k3-dedicated": {
+      "tf/seq_acc": 0.9989,
+      "tf/cell_acc": 1.0,
+      "ar/overall/cell_acc": 1.0
+    },
+    "2d-det-v2k5-shared": {
+      "tf/seq_acc": 1.0,
+      "tf/cell_acc": 1.0,
+      "ar/overall/cell_acc": 1.0
+    },
+    "2d-det-v2k5-dedicated": {
+      "tf/seq_acc": 0.9989,
+      "tf/cell_acc": 1.0,
+      "ar/overall/cell_acc": 0.9999
+    },
+    "1d-stoch-v2k3-shared": {
+      "tf/kl_kgram_model": 0.002,
+      "tf/kl_true_model": 0.0185,
+      "tf/cell_acc": 0.7491,
+      "tf/kgram_cell_acc": 0.7499,
+      "ar/overall/model_cell_acc": 0.5496,
+      "ar/overall/kgram_cell_acc": 0.5485,
+      "ar/overall/kl_kgram_model": 0.0019
+    },
+    "1d-stoch-v2k3-dedicated": {
+      "tf/kl_kgram_model": 0.0046,
+      "tf/kl_true_model": 0.0211,
+      "tf/cell_acc": 0.7469,
+      "tf/kgram_cell_acc": 0.7499,
+      "ar/overall/model_cell_acc": 0.5488,
+      "ar/overall/kgram_cell_acc": 0.5485,
+      "ar/overall/kl_kgram_model": 0.0044
+    },
+    "1d-stoch-v3k3-shared": {
+      "tf/kl_kgram_model": 0.0026,
+      "tf/kl_true_model": 0.0881,
+      "tf/cell_acc": 0.5669,
+      "tf/kgram_cell_acc": 0.5674,
+      "ar/overall/model_cell_acc": 0.3476,
+      "ar/overall/kgram_cell_acc": 0.3475,
+      "ar/overall/kl_kgram_model": 0.0026
+    },
+    "1d-stoch-v3k3-dedicated": {
+      "tf/kl_kgram_model": 0.0004,
+      "tf/kl_true_model": 0.0859,
+      "tf/cell_acc": 0.5675,
+      "tf/kgram_cell_acc": 0.5674,
+      "ar/overall/model_cell_acc": 0.3475,
+      "ar/overall/kgram_cell_acc": 0.3475,
+      "ar/overall/kl_kgram_model": 0.0004
+    },
+    "2d-stoch-v2k5-shared": {
+      "tf/kl_kgram_model": 0.0014,
+      "tf/kl_true_model": 0.03,
+      "tf/cell_acc": 0.7345,
+      "tf/kgram_cell_acc": 0.7351,
+      "ar/overall/model_cell_acc": 0.5201,
+      "ar/overall/kgram_cell_acc": 0.5197,
+      "ar/overall/kl_kgram_model": 0.0013
+    },
+    "2d-stoch-v2k5-dedicated": {
+      "tf/kl_kgram_model": 0.0033,
+      "tf/kl_true_model": 0.0319,
+      "tf/cell_acc": 0.7333,
+      "tf/kgram_cell_acc": 0.7351,
+      "ar/overall/model_cell_acc": 0.5191,
+      "ar/overall/kgram_cell_acc": 0.5197,
+      "ar/overall/kl_kgram_model": 0.0038
+    }
+  }
+}

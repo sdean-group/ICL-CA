@@ -1,0 +1,226 @@
+# Registry of the 12 released checkpoints
+# (https://huggingface.co/collections/sdeangroup/spatial-induction-heads).
+#
+# Each HF repo currently holds only `checkpoint.pt`. The checkpoint's
+# `model_config` describes the architecture but NOT the task, so the task
+# geometry below is the source of truth. It was read from each training set's
+# meta.json and cross-checked against the checkpoint's positional-embedding
+# length (seq_len). `load_pretrained` verifies the `model` block against the
+# checkpoint and fails loudly on any mismatch.
+#
+# Token conventions (all tasks): cell states are 0..V-1, time_sep = V,
+# row_sep = V+1 (2D only). Sequences are T frames serialized row-major,
+# TIME_SEP between frames, ROW_SEP between rows of a 2D frame.
+#
+# Architectures:
+#   shared    — 2 layers, 1 head each, MLP in both layers.
+#   dedicated — layer 0 is a multi-head, attention-only layer (one head per
+#               neighbor); layer 1 is a single head + MLP.
+#
+# `training:` lists what differs from `training_defaults` for the run that
+# produced the released weights (verified by matching weights to the run's
+# checkpoint). `python -m src.train --model <key>` reproduces that run with
+# training data generated on the fly.
+
+defaults:
+  checkpoint_file: checkpoint.pt
+
+# Training hyperparameters shared by every released run (read from each run's
+# wandb config / launching slurm script). Per-model `training:` blocks override.
+# One "epoch" = 50M freshly generated sequences (the size of the original
+# on-disk train split).
+#
+# Verified: for all 12 models, the arguments `python -m src.train --model <key>`
+# resolves to (architecture, optimizer, schedule, batch, epochs, selection,
+# val/patience settings) equal the original runs' (wandb config, or the
+# launching slurm script for the two runs without one). Precision is unchanged
+# (bf16 autocast, TF32 off).
+#
+# Differences from the original runs come only from generating data on the fly:
+#   1. Train data never repeats: each epoch is 50M fresh sequences, whereas the
+#      original runs reused the same on-disk 50M every epoch.
+#   2. Val/test are new samples from the same distribution (same rule pools,
+#      coverage filter and masks; 2D valout/test fold-k balanced), not the
+#      files on disk, so numbers match statistically, not bit-for-bit.
+#   3. The train/* eval panel uses 10k freshly generated train-distribution
+#      sequences (originally the first 10k train samples, or the first 10k of
+#      val for sharded runs).
+#   4. V=2 stochastic training originally rejected one OOD rule (DK, within
+#      1e-4); this has probability ~0 and is not replicated.
+training_defaults:
+  samples_per_epoch: 50000000
+  seed: 42
+  lr: 1.0e-3
+  weight_decay: 0.2
+  beta1: 0.9
+  beta2: 0.95
+  scheduler: cosine
+  warmup_ratio: 0.004
+  dropout: 0.0
+  global_batch_size: 1024
+  accum_steps: 1
+  eval_steps: 5000
+  val_size: 100000
+  test_size: 500000
+  selection_metric: auto       # det -> sequence_accuracy (max), stoch -> kl_true_model (min)
+  patience: 0
+  min_delta: 1.0e-3
+  early_stop_threshold: null
+
+models:
+
+  # ---------------- 1D deterministic, V=2 K=3 (elementary CA) ----------------
+  1d-det-v2k3-shared:
+    repo_id: sdeangroup/CA-Transformer-1D-Det-V2K3-Shared
+    task: &task_1d_det_v2k3
+      dimension: 1
+      stochastic: false
+      V: 2
+      K: 3
+      grid_shape: [16]
+      T: 10
+      M: 4
+      neighborhood: elementary
+      rule_pool: 1d_v2k3
+      train_data: V2K3_ECA_L16_T10_M4_wolfram70-9-9can_n50M_test500k_seed42
+      datagen: "python -m src.datagen.det_1d_wolfram --L 16 --T 10 --M 4 --seed 42"   # rebuilds the on-disk dataset (not needed for src.train)
+    model: {architecture: shared, n_layers: 2, heads: [1, 1], mlp: [1, 1], d_model: 128, d_ffn: 512}
+    tokens: {time_sep: 2, row_sep: null}
+    training: {epochs: 3, warmup_ratio: 0.02, patience: 3, early_stop_threshold: 0.99}   # run: ca1d-V2K3_ECA_L16_T10_M4_wolfram-50M-layers2-heads1-1-mlp1-1-d128-lr1e-3-wd0.2-gbs1024-ep3
+
+  1d-det-v2k3-dedicated:
+    repo_id: sdeangroup/CA-Transformer-1D-Det-V2K3-Dedicated
+    task: *task_1d_det_v2k3
+    model: {architecture: dedicated, n_layers: 2, heads: [4, 1], mlp: [0, 1], d_model: 128, d_ffn: 512}
+    tokens: {time_sep: 2, row_sep: null}
+    training: {epochs: 3, warmup_ratio: 0.02, patience: 3, early_stop_threshold: 0.99}   # run: ca1d-V2K3_ECA_L16_T10_M4_wolfram-50M-layers2-heads4-1-mlp0-1-d128-lr1e-3-wd0.2-gbs1024-ep3
+
+  # ---------------- 1D deterministic, V=3 K=3 ----------------
+  1d-det-v3k3-shared:
+    repo_id: sdeangroup/CA-Transformer-1D-Det-V3K3-Shared
+    task: &task_1d_det_v3k3
+      dimension: 1
+      stochastic: false
+      V: 3
+      K: 3
+      grid_shape: [32]
+      T: 12
+      M: 8
+      neighborhood: elementary
+      rule_pool: 1d_v3k3
+      train_data: V3K3_L32_T12_M8_tq11765_vt400_n50M_test500k_seed42_Hflat
+      datagen: "python -m src.datagen.det_1d_byk --L 32 --T 12 --M 8 --seed 42"   # rebuilds the on-disk dataset (not needed for src.train)
+    model: {architecture: shared, n_layers: 2, heads: [1, 1], mlp: [1, 1], d_model: 256, d_ffn: 1024}
+    tokens: {time_sep: 3, row_sep: null}
+    training: {epochs: 8, lr: 5.0e-4, global_batch_size: 2048}   # run: ca1d-V3K3_L32_Hflat-layers2-heads1-1-mlp1-1-d256-lr5e-4-wd0.2-gbs2048-b20.95-ep8
+
+  1d-det-v3k3-dedicated:
+    repo_id: sdeangroup/CA-Transformer-1D-Det-V3K3-Dedicated
+    task: *task_1d_det_v3k3
+    model: {architecture: dedicated, n_layers: 2, heads: [4, 1], mlp: [0, 1], d_model: 256, d_ffn: 1024}
+    tokens: {time_sep: 3, row_sep: null}
+    training: {epochs: 8, lr: 5.0e-4}   # run: ca1d-V3K3_L32_Hflat-layers2-heads4-1-mlp0-1-d256-lr5e-4-wd0.2-gbs1024-b20.95-ep8-ddp2-b300
+
+  # ---------------- 2D deterministic, V=2 K=5 (von Neumann) ----------------
+  2d-det-v2k5-shared:
+    repo_id: sdeangroup/CA-Transformer-2D-Det-V2K5-Shared
+    task: &task_2d_det_v2k5
+      dimension: 2
+      stochastic: false
+      V: 2
+      K: 5
+      grid_shape: [6, 6]
+      T: 12
+      M: 8
+      neighborhood: von_neumann
+      rule_pool: 2d_v2k5
+      train_data: VN_L6x6_T12_M8_Kv2_train157k_voto10k_n50M_test500k_seed42
+      datagen: "python -m src.datagen.det_2d_byk --L1 6 --L2 6 --T 12 --M 8 --seed 42"   # rebuilds the on-disk dataset (not needed for src.train)
+    model: {architecture: shared, n_layers: 2, heads: [1, 1], mlp: [1, 1], d_model: 1024, d_ffn: 4096}
+    tokens: {time_sep: 2, row_sep: 3}
+    training: {epochs: 5}   # run: ca2d-50M_VN_L6x6_T12_M8-layers2-heads-1-1-mlp1-1-d1024-lr1e-3-wd0.2-gbs1024-b20.95-ep5-ddp2-b300
+
+  2d-det-v2k5-dedicated:
+    repo_id: sdeangroup/CA-Transformer-2D-Det-V2K5-Dedicated
+    task: *task_2d_det_v2k5
+    model: {architecture: dedicated, n_layers: 2, heads: [8, 1], mlp: [0, 1], d_model: 1024, d_ffn: 4096}
+    tokens: {time_sep: 2, row_sep: 3}
+    training: {epochs: 5}   # run: ca2d-50M_VN_L6x6_T12_M8-layers2-heads-8-1-mlp0-1-d1024-lr1e-3-wd0.2-gbs1024-b20.95-ep5-ddp2-b300
+
+  # ---------------- 1D stochastic, V=2 K=3 ----------------
+  1d-stoch-v2k3-shared:
+    repo_id: sdeangroup/CA-Transformer-1D-Stoch-V2K3-Shared
+    task: &task_1d_stoch_v2k3
+      dimension: 1
+      stochastic: true
+      V: 2
+      K: 3
+      grid_shape: [16]
+      T: 20
+      M: 10
+      neighborhood: elementary
+      rule_pool: dirichlet
+      train_data: V2_stoch_L16_T20_M10_n50M_val500k_test500k_seed42
+      datagen: "python -m src.datagen.stoch_1d --V 2 --L 16 --T 20 --M 10 --num_eval_test 500000 --seed 42"   # rebuilds the on-disk dataset (not needed for src.train)
+    model: {architecture: shared, n_layers: 2, heads: [1, 1], mlp: [1, 1], d_model: 256, d_ffn: 1024}
+    tokens: {time_sep: 2, row_sep: null}
+    training: {epochs: 15, warmup_ratio: 0.02, val_size: 50000, selection_metric: cell_acc, patience: 999}   # run: ca1d-V2stoch_L16_T20_M10-50M-layers2-heads1-1-mlp1-1-d256-lr1e-3-wd0.2-gbs1024-ep15-ddp4-b300
+
+  1d-stoch-v2k3-dedicated:
+    repo_id: sdeangroup/CA-Transformer-1D-Stoch-V2K3-Dedicated
+    task: *task_1d_stoch_v2k3
+    model: {architecture: dedicated, n_layers: 2, heads: [4, 1], mlp: [0, 1], d_model: 128, d_ffn: 512}
+    tokens: {time_sep: 2, row_sep: null}
+    training: {epochs: 8, warmup_ratio: 0.02, val_size: 50000}   # run: ca1d-V2stoch_L16_T20_M10-50M-layers2-heads4-1-mlp0-1-d128-lr1e-3-wd0.2-gbs1024-ep8-ddp4
+
+  # ---------------- 1D stochastic, V=3 K=3 ----------------
+  1d-stoch-v3k3-shared:
+    repo_id: sdeangroup/CA-Transformer-1D-Stoch-V3K3-Shared
+    task: &task_1d_stoch_v3k3
+      dimension: 1
+      stochastic: true
+      V: 3
+      K: 3
+      grid_shape: [16]
+      T: 20
+      M: 10
+      neighborhood: elementary
+      rule_pool: dirichlet
+      train_data: V3_stoch_L16_T20_M10_n50M_val500k_test500k_seed42
+      datagen: "python -m src.datagen.stoch_1d --V 3 --L 16 --T 20 --M 10 --num_eval_test 500000 --seed 42"   # rebuilds the on-disk dataset (not needed for src.train)
+    model: {architecture: shared, n_layers: 2, heads: [1, 1], mlp: [1, 1], d_model: 256, d_ffn: 1024}
+    tokens: {time_sep: 3, row_sep: null}
+    training: {epochs: 8, lr: 5.0e-4, warmup_ratio: 0.02, val_size: 50000, selection_metric: kl_model_kgram, patience: 5, min_delta: 5.0e-4}   # run: ca1d-V3stoch_L16_T20_M10-50M-layers2-heads1-1-mlp1-1-d256-lr5e-4-wd0.2-gbs1024-b20.95-ep8-ddp2-b300
+
+  1d-stoch-v3k3-dedicated:
+    repo_id: sdeangroup/CA-Transformer-1D-Stoch-V3K3-Dedicated
+    task: *task_1d_stoch_v3k3
+    model: {architecture: dedicated, n_layers: 2, heads: [4, 1], mlp: [0, 1], d_model: 256, d_ffn: 1024}
+    tokens: {time_sep: 3, row_sep: null}
+    training: {epochs: 8, lr: 5.0e-4, warmup_ratio: 0.02, val_size: 50000}   # run: ca1d-V3stoch_L16_T20_M10-50M-layers2-heads4-1-mlp0-1-d256-lr5e-4-wd0.2-gbs1024-b20.95-ep8-1x6000Ada
+
+  # ---------------- 2D stochastic, V=2 K=5 (von Neumann) ----------------
+  2d-stoch-v2k5-shared:
+    repo_id: sdeangroup/CA-Transformer-2D-Stoch-V2K5-Shared
+    task: &task_2d_stoch_v2k5
+      dimension: 2
+      stochastic: true
+      V: 2
+      K: 5
+      grid_shape: [6, 6]
+      T: 20
+      M: 10
+      neighborhood: von_neumann
+      rule_pool: dirichlet
+      train_data: V2_VN_stoch_L6x6_T20_M10_n50M_val500k_test500k_seed42
+      datagen: "python -m src.datagen.stoch_2d --V 2 --L1 6 --L2 6 --T 20 --M 10 --num_eval_test 500000 --seed 42"   # rebuilds the on-disk dataset (not needed for src.train)
+    model: {architecture: shared, n_layers: 2, heads: [1, 1], mlp: [1, 1], d_model: 1024, d_ffn: 4096}
+    tokens: {time_sep: 2, row_sep: 3}
+    training: {epochs: 10, lr: 5.0e-4, val_size: 50000, selection_metric: cell_acc, patience: 999}   # run: ca2d-V2VN_stoch_L6x6_T20_M10-50M-layers2-heads1-1-mlp1-1-d1024-lr5e-4-wd0.2-gbs1024-b20.95-ep10-sharded-ddp4-b300
+
+  2d-stoch-v2k5-dedicated:
+    repo_id: sdeangroup/CA-Transformer-2D-Stoch-V2K5-Dedicated
+    task: *task_2d_stoch_v2k5
+    model: {architecture: dedicated, n_layers: 2, heads: [8, 1], mlp: [0, 1], d_model: 512, d_ffn: 2048}
+    tokens: {time_sep: 2, row_sep: 3}
+    training: {epochs: 5, selection_metric: loss, patience: 5}   # run: ca2d-V2VN_stoch_L6x6_T20_M10-50M-layers2-heads8-1-mlp0-1-d512-lr1e-3-wd0.2-gbs1024-b20.95-ep5-sharded-1xA6000

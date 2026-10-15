@@ -1,0 +1,12 @@
+# generated datasets (src.datagen default --output_root), checkpoints, eval results
+/data/
+/checkpoints/
+/results/
+*.pt
+wandb/
+
+# python
+__pycache__/
+*.egg-info/
+.ipynb_checkpoints/
+
