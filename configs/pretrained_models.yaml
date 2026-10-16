@@ -61,7 +61,7 @@ training_defaults:
   accum_steps: 1
   eval_steps: 5000
   val_size: 100000
-  test_size: 500000
+  test_size: 100000
   selection_metric: auto       # det -> sequence_accuracy (max), stoch -> kl_true_model (min)
   patience: 0
   min_delta: 1.0e-3

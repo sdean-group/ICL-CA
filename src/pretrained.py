@@ -13,9 +13,7 @@ from .registry import get_spec, registry_entry, _raw_registry
 from .types import ModelSpec
 
 # Buffers rebuilt in __init__; their absence from a checkpoint is harmless.
-_REBUILT_BUFFERS = ("position_ids", "causal_mask", "rope_cos", "rope_sin",
-                    "pos_bias_sep_mask", "pos_bias_dt_idx", "pos_bias_dr_idx",
-                    "pos_bias_dc_idx")
+_REBUILT_BUFFERS = ("position_ids", "causal_mask")
 
 
 @dataclass
@@ -84,6 +82,9 @@ def _check_against_registry(spec: ModelSpec, cfg: dict, sd: dict) -> None:
 
 
 def _build_model(spec: ModelSpec, cfg: dict) -> CATransformer:
+    if cfg.get("use_rope") or cfg.get("pos_bias_T") is not None:
+        raise NotImplementedError("checkpoint uses RoPE / 2D positional bias, which this "
+                                  "release does not support (absolute positions only)")
     return CATransformer(
         vocab_size=spec.vocab_size,
         hidden_size=cfg["hidden_size"],
@@ -94,11 +95,6 @@ def _build_model(spec: ModelSpec, cfg: dict) -> CATransformer:
         ffn_dim_per_layer=cfg.get("ffn_dim_list"),
         emb_dropout=0.0,
         dropout=0.0,
-        pos_bias_T=cfg.get("pos_bias_T"),
-        pos_bias_L1=cfg.get("pos_bias_L1"),
-        pos_bias_L2=cfg.get("pos_bias_L2"),
-        pos_bias_use_row_sep=cfg.get("pos_bias_use_row_sep", True),
-        use_rope=cfg.get("use_rope", False),
         mlp_depth_per_layer=cfg.get("mlp_depth_list"),
     )
 

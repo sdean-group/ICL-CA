@@ -32,12 +32,10 @@ from .types import Example, PredictionResult, RolloutResult
 # ---------------------------------------------------------------------------
 
 class _CachedDecoder:
-    """Incremental forward for CATransformer with absolute positional embeddings
-    and standard multi-head attention (all released checkpoints)."""
+    """Incremental forward for CATransformer (absolute positional embeddings,
+    standard multi-head attention)."""
 
     def __init__(self, model):
-        if getattr(model, "use_rope", False) or getattr(model, "_has_pos_bias", False):
-            raise NotImplementedError("KV cache supports absolute-PE models only")
         self.model = model
         self.k: List[Optional[torch.Tensor]] = [None] * len(model.transformer_layers)
         self.v: List[Optional[torch.Tensor]] = [None] * len(model.transformer_layers)

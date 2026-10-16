@@ -37,8 +37,13 @@ from .registry import specs
 
 
 def _load(args, device):
-    if args.ckpt and not args.model:
-        return load_checkpoint(args.ckpt, device)
+    if args.ckpt:
+        try:        # written by src.train: describes its own task and architecture
+            return load_checkpoint(args.ckpt, device)
+        except ValueError:
+            if not args.model:
+                raise
+    # released checkpoint (downloaded, or a local copy checked against the registry)
     return load_pretrained(args.model, device=device, checkpoint_path=args.ckpt)
 
 
@@ -156,10 +161,10 @@ def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--model", choices=sorted(specs()), default=None,
-                   help="Registry key. Alone: download the released checkpoint.")
+                   help="Registry key: evaluate the released checkpoint (downloaded).")
     p.add_argument("--ckpt", type=str, default=None,
-                   help="Local checkpoint. With --model it is checked against the "
-                        "registry; alone it must come from src.train.")
+                   help="Local checkpoint, e.g. from src.train (any architecture). "
+                        "A copy of a released checkpoint also needs --model.")
     p.add_argument("--split", type=str, default=None,
                    help="Split name (default 'test'; e.g. val_out / val also work).")
     p.add_argument("--n", type=int, default=0,

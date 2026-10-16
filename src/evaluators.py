@@ -87,13 +87,6 @@ def _all_reduce_sum(t: torch.Tensor) -> torch.Tensor:
     return t
 
 
-def _unpack_batch(batch):
-    """Fixed-L (3-tuple: X, y, mask) or mixed-L (4-tuple: X, y, mask, lengths)."""
-    if len(batch) == 4:
-        return batch[0], batch[1], batch[2], batch[3]
-    return batch[0], batch[1], batch[2], None
-
-
 # =============================================================================
 # Standard teacher-forced accuracy
 # =============================================================================
@@ -145,19 +138,14 @@ def evaluate_standard_accuracy(model, dataloader, device, *,
     try:
         with torch.inference_mode():
             for batch in dataloader:
-                X, y, mask, lengths = _unpack_batch(batch)
+                X, y, mask = batch
                 X = X.to(device, non_blocking=True).long()
                 y = y.to(device, non_blocking=True).long()
                 mask = mask.to(device, non_blocking=True)
-                lengths_dev = (lengths.to(device, non_blocking=True)
-                               if lengths is not None else None)
 
                 with torch.amp.autocast('cuda', dtype=torch.bfloat16,
                                         enabled=(device.type == 'cuda')):
-                    if lengths_dev is not None:
-                        logits = model(X, lengths=lengths_dev)
-                    else:
-                        logits = model(X)
+                    logits = model(X)
                 logits = logits.float()
 
                 preds = logits.argmax(dim=-1)
@@ -1212,7 +1200,7 @@ def _kl(p: torch.Tensor, q: torch.Tensor, eps: float = 1e-12) -> torch.Tensor:
 
 
 @torch.inference_mode()
-def evaluate(model, loader, spec, criterion, device, rules=None, attn_temperature=1.0) -> dict:
+def evaluate(model, loader, spec, criterion, device, rules=None) -> dict:
     """rules: per-sample rule ids (deterministic, unused) or (N, V**K, V) tables
     aligned with the loader's (unshuffled) order."""
     was_training = model.training
@@ -1232,7 +1220,7 @@ def evaluate(model, loader, spec, criterion, device, rules=None, attn_temperatur
             X, y, mask = X.to(device), y.to(device), mask.to(device)
             B = X.shape[0]
             with torch.autocast(device.type, dtype=torch.bfloat16, enabled=amp):
-                out = model(X, attn_temperature=attn_temperature)
+                out = model(X)
             out = out.float()
             loss_raw = criterion(out.reshape(-1, out.shape[-1]), y.reshape(-1)).view(B, -1)
             m = mask > 0

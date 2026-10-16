@@ -255,28 +255,58 @@ compare them directly.
 
 ## Training
 
-To retrain any released model from scratch, pass its key:
+There's no dataset to download first. Training data is simulated on the fly, and every
+epoch is 50M brand-new sequences. You can train in two ways.
+
+**1. Start from a released model.** Pass its key and you get that model's architecture
+and training hyperparameters from `configs/pretrained_models.yaml`, so this reproduces it
+from scratch:
 
 ```bash
 bash scripts/train.sh 1d-det-v2k3-shared
 ```
 
-Training data is simulated on the fly, and every epoch
-is 50M brand-new sequences. Hyperparameters are read from `configs/pretrained_models.yaml`.
-The script uses all visible GPUs with DDP. The batch size in the config is the *global*
-batch size, so the number of GPUs doesn't change the optimization.
-
-A few handy variations:
+Any flag you add overrides the config, so you can keep the paper setup and change only
+what you care about:
 
 ```bash
-NGPU=1 bash scripts/train.sh 2d-stoch-v2k5-dedicated            # pick the number of GPUs
-SAVE_DIR=/big/disk bash scripts/train.sh 1d-det-v3k3-shared     # where checkpoints go (default ./checkpoints)
-bash scripts/train.sh 1d-det-v2k3-shared --epochs 1 --lr 5e-4   # any extra flag overrides the config
+bash scripts/train.sh 1d-det-v2k3-shared --lr 5e-4 --epochs 1 --global_batch_size 512
+bash scripts/train.sh 1d-det-v2k3-shared --hidden_size 256      # architecture flags work too
 ```
 
-Checkpoints go to `$SAVE_DIR/<run_name>/`: a `_best.pt` selected on validation, a
-`_final.pt`, and one per epoch. Run `python -m src.train --help` to see every flag. You can
-also skip `--model` and use `--task` to train a new architecture on one of the six tasks.
+**2. Bring your own architecture.** Pass a task name instead of a model key:
+`1d-det-v2k3`, `1d-det-v3k3`, `2d-det-v2k5`, `1d-stoch-v2k3`, `1d-stoch-v3k3` or
+`2d-stoch-v2k5`. The task setup (grid, $T$, $M$, rule splits) comes from the config. You
+pick the model, and the training hyperparameters start from the shared
+`training_defaults`:
+
+```bash
+bash scripts/train.sh 2d-det-v2k5 --hidden_size 512 \
+    --num_heads_per_layer 4 1 --use_mlp_per_layer 0 1 --lr 3e-4
+```
+
+The architecture flags are `--hidden_size`, `--num_heads_per_layer` (one value per
+layer, so the number of values sets the depth), `--use_mlp_per_layer`,
+`--ffn_dim_per_layer`, `--mlp_depth_per_layer` and `--dropout`. The usual training
+flags work too: `--lr`, `--epochs`, `--global_batch_size`, `--warmup_ratio`,
+`--weight_decay`, `--selection_metric`, `--patience`, and so on. See
+`python -m src.train --help` for the full list.
+
+A couple of things that apply either way:
+
+```bash
+NGPU=1 bash scripts/train.sh 2d-stoch-v2k5-dedicated            # number of GPUs (default: all visible)
+SAVE_DIR=/big/disk bash scripts/train.sh 1d-det-v3k3-shared     # where checkpoints go (default ./checkpoints)
+```
+
+Training needs a CUDA GPU and uses all visible GPUs with DDP. The batch size is the
+*global* batch size, so the number of GPUs doesn't change the optimization. For multi-GPU
+runs the script sets `NCCL_P2P_DISABLE=1` by default. Direct GPU-to-GPU transfers hang on
+some PCIe-only machines, and the models are small enough that this costs little. If your
+GPUs have NVLink, `NCCL_P2P_DISABLE=0` turns P2P back on. Checkpoints
+go to `$SAVE_DIR/<run_name>/`: a `_best.pt` selected on validation, a `_final.pt`, and one
+per epoch. Each checkpoint stores its task and architecture, so you can load or evaluate
+it without telling the code what it is.
 
 **W&B logging** is off by default. To turn it on, `pip install wandb` and log into your
 own account, then:
@@ -303,10 +333,10 @@ To get the paper metrics for a released model, run:
 bash scripts/eval.sh 1d-det-v2k3-shared
 ```
 
-or for a checkpoint you trained yourself:
+or for a checkpoint you trained yourself, with any architecture:
 
 ```bash
-CKPT=checkpoints/<run_name>/<run_name>_best.pt bash scripts/eval.sh 1d-det-v2k3-shared
+CKPT=checkpoints/<run_name>/<run_name>_best.pt bash scripts/eval.sh
 ```
 
 The script generates a fresh test set of 100k trajectories from the held-out rules. It then
@@ -323,7 +353,7 @@ What you get depends on the task:
 * **Stochastic tasks:** KL divergence from the true rule and from a $k$-gram estimate built
   from the context, plus cell accuracy for both the model and the $k$-gram.
 
-Results print to the terminal and get saved to `results/<model>.json`. Line them up against
+Results print to the terminal and get saved to `results/<model or run>.json`. Line them up against
 [`configs/paper_results.json`](configs/paper_results.json) to compare with the paper.
 
 Autoregressive evaluation is the slow part, especially in 2D. For a quick look, use fewer
@@ -382,9 +412,3 @@ If you find this useful, please cite:
   url           = {https://arxiv.org/abs/2610.09124}
 }
 ```
-
----
-
-## License
-
-This code is released under the [MIT License](LICENSE).

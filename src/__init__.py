@@ -10,13 +10,13 @@ Quick start:
 
 from .data import check_context, continue_trajectory, generate_example, generate_examples
 from .inference import evaluate, predict, rollout
-from .pretrained import ModelBundle, load_pretrained
+from .pretrained import ModelBundle, load_checkpoint, load_pretrained
 from .registry import get_spec, list_pretrained
 from .types import Example, ModelSpec, PredictionResult, RolloutResult
 from .visualization import plot_ar_accuracy, plot_example, plot_prediction, plot_rollout
 
 __all__ = [
-    "list_pretrained", "load_pretrained", "get_spec",
+    "list_pretrained", "load_pretrained", "load_checkpoint", "get_spec",
     "generate_example", "generate_examples", "continue_trajectory", "check_context",
     "predict", "rollout", "evaluate",
     "plot_example", "plot_prediction", "plot_rollout", "plot_ar_accuracy",
