@@ -156,7 +156,10 @@ itself lives in `src/`, so after this you can `import src` from anywhere. W&B is
 
 ## Quick Start
 
-The easiest way in is the notebook [`quickstart.ipynb`](quickstart.ipynb). It downloads a
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sdean-group/ICL-CA/blob/main/quickstart.ipynb)
+
+The easiest way in is the notebook [`quickstart.ipynb`](quickstart.ipynb). Click the badge
+above to run it on Google Colab with nothing to install, or run it locally. It downloads a
 single checkpoint and takes a few minutes on a CPU. It walks through:
 
 1. listing and loading a released model;
@@ -164,6 +167,8 @@ single checkpoint and takes a few minutes on a CPU. It walks through:
 3. running the model teacher-forced and autoregressively;
 4. plotting predictions next to the ground truth;
 5. giving the model **your own rule and context** and checking what it predicts.
+
+To run it locally instead:
 
 ```bash
 pip install jupyterlab
